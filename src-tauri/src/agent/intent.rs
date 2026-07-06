@@ -11,6 +11,11 @@ pub async fn parse_intent(
     let prompt = format!(
         r#"你是一个电商比价助手。分析用户的购买需求，提取关键信息，返回纯 JSON（不要 markdown 标记）。
 
+规则：
+- 只要有商品类型（product_name），就可以进行比价，is_complete 应为 true
+- brand、model、budget 都是可选的辅助信息，用户没提就填 null，不算缺失
+- 只有当用户输入完全无法判断要买什么时，is_complete 才为 false
+
 {{
   "product_name": "商品类型（如蓝牙耳机、手机）",
   "brand": "偏好品牌（可为 null）",
@@ -19,7 +24,7 @@ pub async fn parse_intent(
   "budget_max": 最高预算数字或 null,
   "features": ["功能要求列表"],
   "usage_scenario": "使用场景（可为 null）",
-  "is_complete": true 或 false（信息是否足够进行比价）,
+  "is_complete": true 或 false,
   "missing_fields": ["缺少的关键字段"]
 }}
 

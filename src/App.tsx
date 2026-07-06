@@ -1,51 +1,98 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { Layout, Typography, Space, Alert, Steps } from "antd";
+import SearchBox from "./components/SearchBox";
+import ResultTable from "./components/ResultTable";
+import { searchProducts } from "./api/query";
+import type { AgentResult, AgentStep } from "./types/product";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+const { Header, Content } = Layout;
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+export default function App() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<AgentResult | null>(null);
+  const [steps, setSteps] = useState<AgentStep[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSearch = async (question: string) => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setSteps([{ step: "正在理解需求...", status: "running" }]);
+
+    try {
+      const res = await searchProducts(question);
+      setResult(res);
+      setSteps(res.steps);
+    } catch (e) {
+      setError(String(e));
+      setSteps([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stepsIndex = steps.filter((s) => s.status === "done").length;
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
+    <Layout style={{ minHeight: "100vh" }}>
+      <Header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+        <Typography.Title level={3} style={{ color: "#fff", margin: 0 }}>
+          🛒 跨平台比价智能体
+        </Typography.Title>
+      </Header>
+      <Content style={{ padding: "32px 40px", maxWidth: 1000, margin: "0 auto" }}>
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
+          <div style={{ textAlign: "center" }}>
+            <SearchBox onSearch={handleSearch} loading={loading} />
+          </div>
+
+          {steps.length > 0 && (
+            <Steps
+              size="small"
+              current={stepsIndex}
+              status={steps.some((s) => s.status === "error") ? "error" : "process"}
+              items={steps.map((s) => ({
+                title: s.step.replace("正在", "").replace("...", ""),
+              }))}
+            />
+          )}
+
+          {error && (
+            <Alert
+              type={error.includes("补充") ? "warning" : "error"}
+              message={error}
+              showIcon
+              closable
+              onClose={() => setError(null)}
+            />
+          )}
+
+          {result && result.products.length > 0 && (
+            <>
+              {result.recommendation && (
+                <Alert
+                  type="success"
+                  message="推荐建议"
+                  description={result.recommendation}
+                  showIcon
+                />
+              )}
+              <ResultTable data={result.products} />
+            </>
+          )}
+
+          {result && result.products.length === 0 && (
+            <Alert type="info" message="未找到匹配的商品，试试换个说法？" showIcon />
+          )}
+        </Space>
+      </Content>
+    </Layout>
   );
 }
-
-export default App;
