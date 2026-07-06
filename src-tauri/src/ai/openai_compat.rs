@@ -21,7 +21,7 @@ impl OpenAiCompatProvider {
     /// `base_url` — API 地址
     /// `api_key`  — API Key
     /// `model`    — 模型名
-    pub fn new(base_url: &str, api_key: &str, model: &str) -> Self {
+    pub fn new(api_key: &str, base_url: &str, model: &str) -> Self {
         let config = OpenAIConfig::default()
             .with_api_base(base_url)
             .with_api_key(api_key);
@@ -95,7 +95,7 @@ mod tests {
         let api_key = std::env::var("LLM_API_KEY").expect("请先在 .env 中设置 LLM_API_KEY");
         let model = std::env::var("LLM_MODEL").expect("请先在 .env 中设置 LLM_MODEL");
 
-        let provider = OpenAiCompatProvider::new(&base_url, &api_key, &model);
+        let provider = OpenAiCompatProvider::new(&api_key, &base_url, &model);
 
         let messages = vec![ChatMessage {
             role: "user".into(),
