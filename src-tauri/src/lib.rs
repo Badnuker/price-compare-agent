@@ -5,7 +5,9 @@ mod config;
 mod models;
 
 use agent::orchestrator::AgentOrchestrator;
+use ai::anthropic::AnthropicProvider;
 use ai::openai_compat::OpenAiCompatProvider;
+use ai::provider::LlmProvider;
 use std::sync::Arc;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,11 +16,18 @@ pub fn run() {
 
     let config = config::AppConfig::from_env();
 
-    let provider = Arc::new(OpenAiCompatProvider::new(
-        &config.llm_api_key,
-        &config.llm_base_url,
-        &config.llm_model,
-    ));
+    let provider: Arc<dyn LlmProvider> = match config.llm_provider.as_str() {
+        "anthropic" => Arc::new(AnthropicProvider::new(
+            &config.llm_api_key,
+            &config.llm_base_url,
+            &config.llm_model,
+        )),
+        _ => Arc::new(OpenAiCompatProvider::new(
+            &config.llm_api_key,
+            &config.llm_base_url,
+            &config.llm_model,
+        )),
+    };
 
     let orchestrator = AgentOrchestrator::new(provider).expect("Agent 初始化失败");
 

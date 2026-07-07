@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Drawer, Form, Input, Button, App } from "antd";
+import { Drawer, Form, Input, Button, Select, App } from "antd";
 import { SettingOutlined } from "@ant-design/icons";
 import { getSettings, saveSettings, type Settings } from "../api/settings";
 
@@ -43,6 +43,18 @@ export default function SettingsDrawer() {
       >
         <Form form={form} layout="vertical">
           <Form.Item
+            name="llm_provider"
+            label="API 兼容格式"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { value: "openai", label: "OpenAI" },
+                { value: "anthropic", label: "Anthropic" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
             name="llm_api_key"
             label="API Key"
             rules={[{ required: true, message: "请输入 API Key" }]}
@@ -51,14 +63,14 @@ export default function SettingsDrawer() {
           </Form.Item>
           <Form.Item
             name="llm_base_url"
-            label="API 地址"
+            label="API Base Url"
             rules={[{ required: true, message: "请输入 API 地址" }]}
           >
             <Input placeholder="https://api.deepseek.com" />
           </Form.Item>
           <Form.Item
             name="llm_model"
-            label="模型"
+            label="模型 IDs"
             rules={[{ required: true, message: "请输入模型名" }]}
           >
             <Input placeholder="deepseek-v4-flash" />
