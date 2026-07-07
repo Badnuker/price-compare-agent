@@ -19,7 +19,7 @@ export default function SettingsDrawer() {
   const handleSave = async () => {
     const values = await form.validateFields();
     await saveSettings(values);
-    message.success("设置已保存，重启应用后生效");
+    message.success("设置已生效");
     setOpen(false);
   };
 

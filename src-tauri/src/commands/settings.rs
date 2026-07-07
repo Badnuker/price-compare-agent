@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::sync::Arc;
 use tauri::Manager;
+use tokio::sync::RwLock;
+
+use crate::agent::orchestrator::AgentOrchestrator;
+use crate::create_provider;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Settings {
@@ -22,14 +27,12 @@ fn settings_path(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
 pub fn get_settings(app_handle: tauri::AppHandle) -> Settings {
     let path = settings_path(&app_handle);
 
-    // 优先读取本地保存的设置
     if let Ok(json) = fs::read_to_string(&path) {
         if let Ok(settings) = serde_json::from_str::<Settings>(&json) {
             return settings;
         }
     }
 
-    // fallback 到 .env
     Settings {
         llm_provider: std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "openai".into()),
         llm_api_key: std::env::var("LLM_API_KEY").unwrap_or_default(),
@@ -39,11 +42,24 @@ pub fn get_settings(app_handle: tauri::AppHandle) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(app_handle: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+pub async fn save_settings(
+    app_handle: tauri::AppHandle,
+    settings: Settings,
+) -> Result<(), String> {
     let path = settings_path(&app_handle);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&path, json).map_err(|e| e.to_string())
+    fs::write(&path, json).map_err(|e| e.to_string())?;
+
+    // 重建 orchestrator，立即生效
+    let new_orch = AgentOrchestrator::new(create_provider(&settings))
+        .map_err(|e| e.to_string())?;
+
+    let state = app_handle.state::<Arc<RwLock<AgentOrchestrator>>>();
+    let mut orch = state.write().await;
+    *orch = new_orch;
+
+    Ok(())
 }

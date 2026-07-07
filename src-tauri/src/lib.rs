@@ -8,7 +8,24 @@ use agent::orchestrator::AgentOrchestrator;
 use ai::anthropic::AnthropicProvider;
 use ai::openai_compat::OpenAiCompatProvider;
 use ai::provider::LlmProvider;
+use commands::settings::Settings;
 use std::sync::Arc;
+use tokio::sync::RwLock;
+
+pub fn create_provider(settings: &Settings) -> Arc<dyn LlmProvider> {
+    match settings.llm_provider.as_str() {
+        "anthropic" => Arc::new(AnthropicProvider::new(
+            &settings.llm_api_key,
+            &settings.llm_base_url,
+            &settings.llm_model,
+        )),
+        _ => Arc::new(OpenAiCompatProvider::new(
+            &settings.llm_api_key,
+            &settings.llm_base_url,
+            &settings.llm_model,
+        )),
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,24 +33,19 @@ pub fn run() {
 
     let config = config::AppConfig::from_env();
 
-    let provider: Arc<dyn LlmProvider> = match config.llm_provider.as_str() {
-        "anthropic" => Arc::new(AnthropicProvider::new(
-            &config.llm_api_key,
-            &config.llm_base_url,
-            &config.llm_model,
-        )),
-        _ => Arc::new(OpenAiCompatProvider::new(
-            &config.llm_api_key,
-            &config.llm_base_url,
-            &config.llm_model,
-        )),
+    let settings = Settings {
+        llm_provider: config.llm_provider,
+        llm_api_key: config.llm_api_key,
+        llm_base_url: config.llm_base_url,
+        llm_model: config.llm_model,
     };
 
-    let orchestrator = AgentOrchestrator::new(provider).expect("Agent 初始化失败");
+    let orchestrator = AgentOrchestrator::new(create_provider(&settings))
+        .expect("Agent 初始化失败");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(orchestrator)
+        .manage(Arc::new(RwLock::new(orchestrator)))
         .invoke_handler(tauri::generate_handler![
             commands::query::search_products,
             commands::settings::get_settings,
