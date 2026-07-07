@@ -1,8 +1,8 @@
 [package]
 name = "price-compare-agent"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+version = "1.0.0"
+description = "跨平台自动比价智能体"
+authors = ["Red King Group"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
