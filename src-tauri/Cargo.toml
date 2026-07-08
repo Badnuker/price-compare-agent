@@ -1,6 +1,6 @@
 [package]
 name = "price-compare-agent"
-version = "1.0.0"
+version = "1.1.0"
 description = "跨平台自动比价智能体"
 authors = ["Red King Group"]
 edition = "2021"
