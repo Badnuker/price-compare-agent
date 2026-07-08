@@ -1,119 +1,130 @@
-import { useState } from "react";
-import { Layout, Typography, Space, Alert, Steps, App as AntApp } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { Layout, Typography, Input, Button, App as AntApp } from "antd";
+import { SendOutlined } from "@ant-design/icons";
 import { listen } from "@tauri-apps/api/event";
-import SearchBox from "./components/SearchBox";
-import ResultTable from "./components/ResultTable";
-import PriceChart from "./components/PriceChart";
+import ChatBubble from "./components/ChatBubble";
 import SettingsDrawer from "./components/SettingsDrawer";
 import { searchProducts } from "./api/query";
 import type { AgentResult } from "./types/product";
 import "./App.css";
 
-const { Header, Content } = Layout;
-
-const STEP_LABELS = ["理解需求", "筛选商品", "比价分析", "生成推荐"];
+const { Header, Content, Footer } = Layout;
 
 interface StepPayload {
   index: number;
   label: string;
 }
 
+interface Message {
+  key: string;
+  role: "user" | "agent";
+  content?: string;
+  loading?: boolean;
+  stepIndex?: number;
+  error?: string;
+  result?: AgentResult;
+}
+
 export default function App() {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AgentResult | null>(null);
-  const [stepIndex, setStepIndex] = useState(-1);
-  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    { key: "welcome", role: "agent", content: "你好！我是比价助手 🛒\n告诉我你想买什么，我帮你跨平台比价，找到最划算的选择。" },
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = async (question: string) => {
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setStepIndex(0);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
-    // 监听后端实时推送的步骤事件
+  const handleSend = async () => {
+    const question = input.trim();
+    if (!question || sending) return;
+
+    setInput("");
+    setSending(true);
+
+    const userKey = Date.now().toString();
+    const agentKey = (Date.now() + 1).toString();
+
+    setMessages((prev) => [
+      ...prev,
+      { key: userKey, role: "user", content: question },
+      { key: agentKey, role: "agent", loading: true, stepIndex: 0 },
+    ]);
+
     const unlistenStep = listen<StepPayload>("agent-step", (event) => {
-      setStepIndex(event.payload.index);
+      setMessages((prev) =>
+        prev.map((m) => (m.key === agentKey ? { ...m, stepIndex: event.payload.index } : m))
+      );
     });
     const unlistenErr = listen<string>("agent-step-error", (event) => {
-      setError(event.payload);
-      setStepIndex(-1);
+      setMessages((prev) =>
+        prev.map((m) => (m.key === agentKey ? { ...m, loading: false, error: event.payload } : m))
+      );
     });
 
     try {
       const res = await searchProducts(question);
-      setResult(res);
+      setMessages((prev) =>
+        prev.map((m) => (m.key === agentKey ? { ...m, loading: false, result: res } : m))
+      );
     } catch (e) {
-      if (!error) setError(String(e));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.key === agentKey ? { ...m, loading: false, error: String(e) } : m
+        )
+      );
     } finally {
-      setLoading(false);
+      setSending(false);
       unlistenStep.then((fn) => fn());
       unlistenErr.then((fn) => fn());
     }
   };
 
-  const stepsItems = STEP_LABELS.map((title) => ({ title }));
-
   return (
     <AntApp>
-    <Layout style={{ minHeight: "100vh" }}>
-      <Header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography.Title level={3} style={{ color: "#fff", margin: 0, flex: 1 }}>
-          🛒 跨平台比价智能体
-        </Typography.Title>
-        <SettingsDrawer />
-      </Header>
-      <Content style={{ padding: "32px 40px", maxWidth: 1000, margin: "0 auto" }}>
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <div style={{ textAlign: "center" }}>
-            <SearchBox onSearch={handleSearch} loading={loading} />
+      <Layout style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
+        <Header style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Typography.Title level={3} style={{ color: "#fff", margin: 0, flex: 1 }}>
+            🛒 跨平台比价智能体
+          </Typography.Title>
+          <SettingsDrawer />
+        </Header>
+        <Content
+          ref={scrollRef}
+          style={{ flex: 1, overflow: "auto", padding: "20px 40px", background: "#f5f5f5" }}
+        >
+          <div style={{ maxWidth: 800, margin: "0 auto" }}>
+            {messages.map((msg) => (
+              <ChatBubble
+                key={msg.key}
+                role={msg.role}
+                content={msg.content}
+                loading={msg.loading}
+                stepIndex={msg.stepIndex}
+                error={msg.error}
+                result={msg.result}
+              />
+            ))}
           </div>
-
-          {stepIndex >= 0 && (
-            <Steps
-              size="small"
-              current={stepIndex}
-              status={error ? "error" : result ? "finish" : "process"}
-              items={stepsItems}
+        </Content>
+        <Footer style={{ flexShrink: 0, padding: "12px 40px", background: "#fff", borderTop: "1px solid #f0f0f0" }}>
+          <div style={{ maxWidth: 800, margin: "0 auto", display: "flex", gap: 8 }}>
+            <Input
+              size="large"
+              placeholder="输入你想买的商品，例如：找一款300以内适合运动的蓝牙耳机"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onPressEnter={handleSend}
+              disabled={sending}
             />
-          )}
-
-          {error && (
-            <Alert
-              type={error.includes("补充") ? "warning" : "error"}
-              message={error}
-              showIcon
-              closable
-              onClose={() => setError(null)}
-            />
-          )}
-
-          {result && result.products.length > 0 && (
-            <>
-              {result.recommendation && (
-                <Alert
-                  type="success"
-                  message="推荐建议"
-                  description={result.recommendation}
-                  showIcon
-                />
-              )}
-              <ResultTable data={result.products} />
-              <PriceChart products={result.products} />
-            </>
-          )}
-
-          {result && result.products.length === 0 && (
-            <Alert type="info" message="未找到匹配的商品，试试换个说法？" showIcon />
-          )}
-        </Space>
-      </Content>
-    </Layout>
+            <Button type="primary" size="large" icon={<SendOutlined />} loading={sending} onClick={handleSend}>
+              发送
+            </Button>
+          </div>
+        </Footer>
+      </Layout>
     </AntApp>
   );
 }
