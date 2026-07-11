@@ -30,6 +30,12 @@
 
 ## 开发
 
+```bash
+pnpm install
+pnpm tauri dev      # 启动开发服务器
+pnpm tauri build    # 构建安装包
+```
+
 首次运行在设置页（右上角齿轮）配置 API Key。
 
 ## 文档
