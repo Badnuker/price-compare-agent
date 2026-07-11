@@ -11,6 +11,12 @@
 - 💬 **对话历史** — 历史对话侧栏，多轮追问上下文记忆
 - 🧠 **思考可见** — LLM 推理过程可展开查看
 - 📊 **结果卡片** — 商品详情抽屉 + 价格对比图表
+- ⚡ **快捷模板** — 6 个预设搜索模板，一键填充
+- 🏆 **最佳性价比** — 自动计算性价比评分，标注最佳选择
+- 🔊 **语音朗读** — 浏览器 TTS 朗读推荐文字
+- 📏 **页面缩放** — Ctrl/Cmd + 滚轮无级缩放 (0.75x ~ 1.5x)
+- 🔄 **重新生成** — 对 AI 回复不满意可重新生成
+- 🗑️ **配对删除** — 删除用户消息时自动移除对应的 AI 回复
 
 ## 技术栈
 
@@ -19,15 +25,10 @@
 | 桌面框架 | Tauri 2 |
 | 后端 | Rust (tokio, async-openai, reqwest) |
 | 前端 | React 19 + TypeScript |
-| UI | Ant Design 5 + ECharts |
+| UI | Ant Design 6 + ECharts 6 |
+| Markdown | react-markdown 10 |
 
 ## 开发
-
-```bash
-pnpm install
-pnpm tauri dev      # 启动开发服务器
-pnpm tauri build    # 构建安装包
-```
 
 首次运行在设置页（右上角齿轮）配置 API Key。
 
